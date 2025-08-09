@@ -14,8 +14,7 @@ from urllib.parse import urlparse
 
 import requests
 
-#USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:141.0) Gecko/20100101 Firefox/141.0"
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 SNAP = [1, 2, 3]
 
 
@@ -140,10 +139,15 @@ class VintedClient(Client):
         print("downloading details from '%s'" % item_url)
         response = self.session.get(item_url)
         try:
-            open("vinted_product_downloader_error.txt", "wb").write(response.content)
-            data = extract_details_from_html(response.text)
+            response_text = response.text
+            data = extract_details_from_html_with_dto(response_text)
             if data is None:
-                raise ValueError("Unable to extract product details from the HTML")
+                data = extract_details_from_html_with_full_size_url(response_text)
+                if data is None:
+                    raise ValueError("Unable to extract product details from the HTML")
+                print("Found data with the 'full_size_url' method")
+            else:
+                print("Found data with the 'itemDto' method")
             return data
         except json.JSONDecodeError:
             open("vinted_product_downloader_error.txt", "wb").write(response.content)
@@ -292,7 +296,7 @@ def main() -> int:
     return 0
 
 
-def extract_details_from_html(html_content: str) -> dict[str, Any] | None:
+def extract_details_from_html_with_dto(html_content: str) -> dict[str, Any] | None:
     def extract_item_dto_data(html: str) -> str | None:
         regex = r"<script\b[^>]*>self\.__next_f\.push\((.*?)\)<\/script>"
         matches = re.finditer(regex, html, re.DOTALL)
@@ -323,6 +327,44 @@ def extract_details_from_html(html_content: str) -> dict[str, Any] | None:
                     data = y["itemDto"]
                     assert isinstance(data, dict)
                     return data
+    return None
+
+
+def extract_details_from_html_with_full_size_url(html_content: str) -> dict[str, Any] | None:
+
+    def get_item_dict(data: dict[str, Any] | list[Any]) -> dict[str, Any] | None:
+        if isinstance(data, dict) and "item" in data:
+            return cast(dict[str, Any], data["item"])
+
+        if isinstance(data, list):
+            for item in data:
+                if isinstance(item, (dict, list)):
+                    if res := get_item_dict(item):
+                        return res
+        elif isinstance(data, dict):
+            for key, value in data.items():
+                assert not isinstance(key, (dict, list))
+                if isinstance(value, (dict, list)):
+                    if res := get_item_dict(value):
+                        return res
+        else:
+            assert False, "Invalid data type"
+        return None
+
+    regex = r"<script\b[^>]*>self\.__next_f\.push\((.*?)\)<\/script>"
+    matches = re.finditer(regex, html_content, re.DOTALL)
+    for match in matches:
+        if "full_size_url" not in match.group(1):
+            continue
+        outer_list: list[Any] = json.loads(match.group(1))
+        for outer_item in outer_list:
+            if not isinstance(outer_item, str):
+                continue
+            item, n = re.subn(r"^[a-zA-Z0-9]+:\[", "[", outer_item)
+            if n > 0:
+                found = get_item_dict(json.loads(item))
+                if found:
+                    return found
     return None
 
 
