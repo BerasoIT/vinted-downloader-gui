@@ -14,7 +14,8 @@ from urllib.parse import urlparse
 
 import requests
 
-USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+#USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:141.0) Gecko/20100101 Firefox/141.0"
 SNAP = [1, 2, 3]
 
 
@@ -76,17 +77,17 @@ class Downloader:
                     client.download_photos(*details.full_size_photo_urls)
                 ):
                     self.writer.write_bytes(
-                        Path(f"photo_{i}_{item_id}.jpg"), photo_bytes
+                        Path(f"photo_{i}_{item_id}.webp"), photo_bytes
                     )
         else:
             for i, photo_bytes in enumerate(
                 client.download_photos(*details.full_size_photo_urls)
             ):
-                self.writer.write_bytes(Path(f"photo_{i}.jpg"), photo_bytes)
+                self.writer.write_bytes(Path(f"photo_{i}.webp"), photo_bytes)
 
         if download_seller_profile and details.seller_photo_url:
             photo_bytes = client.download_photo(details.seller_photo_url)
-            self.writer.write_bytes(Path("seller.jpg"), photo_bytes)
+            self.writer.write_bytes(Path("seller.webp"), photo_bytes)
 
     @staticmethod
     def _get_vinted_tld(item_url: str) -> str:
@@ -139,6 +140,7 @@ class VintedClient(Client):
         print("downloading details from '%s'" % item_url)
         response = self.session.get(item_url)
         try:
+            open("vinted_product_downloader_error.txt", "wb").write(response.content)
             data = extract_details_from_html(response.text)
             if data is None:
                 raise ValueError("Unable to extract product details from the HTML")
@@ -291,40 +293,36 @@ def main() -> int:
 
 
 def extract_details_from_html(html_content: str) -> dict[str, Any] | None:
+    def extract_item_dto_data(html: str) -> str | None:
+        regex = r"<script\b[^>]*>self\.__next_f\.push\((.*?)\)<\/script>"
+        matches = re.finditer(regex, html, re.DOTALL)
 
-    def get_item_dict(data: dict[str, Any] | list[Any]) -> dict[str, Any] | None:
-        if isinstance(data, dict) and "item" in data:
-            return cast(dict[str, Any], data["item"])
-
-        if isinstance(data, list):
-            for item in data:
-                if isinstance(item, (dict, list)):
-                    if res := get_item_dict(item):
-                        return res
-        elif isinstance(data, dict):
-            for key, value in data.items():
-                assert not isinstance(key, (dict, list))
-                if isinstance(value, (dict, list)):
-                    if res := get_item_dict(value):
-                        return res
-        else:
-            assert False, "Invalid data type"
+        for match in matches:
+            content = match.group(1)
+            if "itemDto" in content:
+                return content
         return None
 
-    regex = r"<script\b[^>]*>self\.__next_f\.push\((.*?)\)<\/script>"
-    matches = re.finditer(regex, html_content, re.DOTALL)
-    for match in matches:
-        if "full_size_url" not in match.group(1):
-            continue
-        outer_list: list[Any] = json.loads(match.group(1))
-        for outer_item in outer_list:
-            if not isinstance(outer_item, str):
-                continue
-            item, n = re.subn(r"^[a-zA-Z0-9]+:\[", "[", outer_item)
-            if n > 0:
-                found = get_item_dict(json.loads(item))
-                if found:
-                    return found
+    array_str = extract_item_dto_data(html_content)
+    if array_str is None:
+        return None
+
+    array = json.loads(array_str)
+    json_data = None
+    for item in array:
+        if isinstance(item, str) and "itemDto" in item:
+            item = re.sub(r"^[a-zA-Z0-9]+:", "", item)
+            json_data = json.loads(item)
+            break
+
+    if json_data:
+        for x in json_data:
+            assert isinstance(x, list)
+            for y in x:
+                if isinstance(y, dict) and "itemDto" in y:
+                    data = y["itemDto"]
+                    assert isinstance(data, dict)
+                    return data
     return None
 
 
