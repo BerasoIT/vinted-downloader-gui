@@ -29,6 +29,11 @@ All core downloading functionality is provided by the original vinted-downloader
 ## Quick Start
 
 ```bash
+# Install Python 3.8+ if not already installed
+# Ubuntu/Debian: sudo apt install python3 python3-pip python3-tkinter
+# Windows: Download from https://python.org
+# macOS: brew install python-tk
+
 # Launch the GUI
 python3 vinted_downloader_gui.py
 ```
