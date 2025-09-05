@@ -5,3 +5,16 @@ venv/
 output*/
 .mypy_cache/
 .pytest_cache/
+closet/
+test_dir/item.json
+.vscode/launch.json
+.vscode/settings.json
+tests/test_clipboard.py
+.gitignore
+tests/test_organization.py
+item_summary
+downloaded_items_backup.json
+downloaded_items.json
+item.json
+debug_gui.log.backup
+vinted-downloader-gui.desktop

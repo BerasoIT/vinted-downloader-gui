@@ -1,16 +1,46 @@
-# Vinted Product Downloader
+# Vinted Downloader GUI - WIP 🚧
 
-Vinted is a website to buy and sell second-hand clothes available in several countries in Europe.  Sometimes it's useful to download the photographs of an article.
+⚠️ **Work in Progress** - This project is currently under active development
 
-At the time of writing (October the 14th, 2023), scrapping information from the Vinted website is somewhat easy.  You can find all the details below. You can download all the photographs with a small bash script, without even needing python.
+A graphical user interface wrapper for the excellent [vinted-downloader](https://github.com/boberle/vinted-downloader) by [boberle](https://github.com/boberle).
 
-But if you want more information (not just the photographs) or don't know how to pipe commands on the command line, here is a python script that will:
+## Original Project
 
-- download and extract the details about a Vinted product. This json contains all the information available for the product, the user, the photographs, etc.
-- download all the photographs of the product in full resolution
-- download the profile picture of the seller (with the `--seller` option)
+This GUI is built on top of the original command-line vinted-downloader:
 
-It is working like this:
+- **Original Author**: [boberle](https://github.com/boberle)
+- **Original Repository**: https://github.com/boberle/vinted-downloader
+- **License**: Same as original project
+
+All core downloading functionality is provided by the original vinted-downloader. This project only adds a user-friendly graphical interface and file organization features.
+
+## Current Status
+
+🔧 **In Development** - Features being implemented:
+
+- ✅ GUI interface for easy downloading
+- ✅ Automatic file organization (closet/username/title_001.webp)
+- ✅ Duplicate download prevention with tracking
+- ✅ Debug logging system for troubleshooting
+- 🚧 User documentation and installation guides
+- 🚧 Error handling improvements
+- 🚧 Additional GUI features
+
+## Quick Start
+
+```bash
+# Launch the GUI
+python3 vinted_downloader_gui.py
+```
+
+## Credits
+
+- **Original vinted-downloader**: [boberle](https://github.com/boberle) - https://github.com/boberle/vinted-downloader
+- **GUI wrapper**: This project adds the graphical interface and organization features
+
+---
+
+_For the original command-line documentation, visit the [original repository](https://github.com/boberle/vinted-downloader)_
 
 ```bash
 python3 vinted_downloader.py "PRODUCT_URL"
@@ -27,7 +57,7 @@ Then you get the following files:
 - `photo_01.jpg`: all the photos for the item
 - `seller.jpg`: with the `--seller` option
 
-Use the `-o` option to specify an output directory (default is current directory).  If it doesn't exist, it will be created. If you want to save the files in a subdirectory of the `-o` directory automatically named after the item id and title, then use the `--save-in-dir` option.  For example, to automatically create and save in the `my-output/1234-item-title/` directory, run:
+Use the `-o` option to specify an output directory (default is current directory). If it doesn't exist, it will be created. If you want to save the files in a subdirectory of the `-o` directory automatically named after the item id and title, then use the `--save-in-dir` option. For example, to automatically create and save in the `my-output/1234-item-title/` directory, run:
 
 ```bash
 python3 vinted_downloader.py -o my-output --save-in-dir "https://www.vinted.fr/items/1234-item-title"
@@ -45,14 +75,11 @@ vinted-downloader --seller "PRODUCT_URL"
 vinted-downloader --all "PRODUCT_URL"
 ```
 
-
 ## Firefox extension
 
 Note that I developed a new Firefox extension to download the same data (except the seller json and profile picture), and, in addition, conversations with images. You can found it at the [Firefox add-ons store](https://addons.mozilla.org/en-US/firefox/addon/vinted-photo-data-downloader/), and the source code is available on [Github](https://github.com/boberle/vinted-downloader-firefox-addon).
 
-
 ## How to install?
-
 
 ### With `pip`
 
@@ -84,7 +111,6 @@ To update the package, run:
 pip3 install --upgrade vinted-downloader
 ```
 
-
 #### On Windows
 
 First you need to install Python:
@@ -92,8 +118,8 @@ First you need to install Python:
 - go to https://www.python.org/downloads/
 - download the installer "Python for Windows"
 - run the installer (click on the downloaded file)
-   - check the box "Add python.exe to PATH" (this is **VERY IMPORTANT**, see the image below)
-   - click on "Install Now"
+  - check the box "Add python.exe to PATH" (this is **VERY IMPORTANT**, see the image below)
+  - click on "Install Now"
 
 <img src="docs/img/screenshot_windows_install_python.png" />
 
@@ -104,7 +130,6 @@ Then open the Command Prompt (type "prompt" in the search bar at the bottom of t
 
 <img src="docs/img/screenshot_windows_install_vinted_downloader.png" />
 
-
 Then use it, like described above. For example:
 
 ```bash
@@ -114,7 +139,6 @@ vinted-downloader --all "PRODUCT_URL"
 ```
 
 <img src="docs/img/screenshot_windows_run_vinted_downloader.png" />
-
 
 If the command `vinted-downloader` doesn't work, use:
 
@@ -128,13 +152,11 @@ To update, run:
 pip install --upgrade vinted-downloader
 ```
 
-
 ### From the sources
 
 Clone the github repository and install the dependencies.
 
 For Linux and MacOS:
-
 
 ```bash
 # clone:
@@ -149,7 +171,6 @@ pip install -r requirements.txt
 # use:
 python3 vinted_downloader.py "PRODUCT_URL"
 ```
-
 
 ## How does it work?
 
