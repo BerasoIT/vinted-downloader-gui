@@ -15,6 +15,8 @@ import logging
 import os
 from pathlib import Path
 import argparse
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
 from vinted_organizer import organize_vinted_download
 from download_tracker import tracker
 from log_manager import get_logger, is_debug_mode
@@ -101,7 +103,8 @@ def run_vinted_downloader_with_organization(args_list, custom_closet_dir=None, s
                 modified_args.extend(["-o", str(temp_path)])
             
             # Esegui il downloader originale
-            cmd = [sys.executable, "vinted_downloader.py"] + modified_args
+            downloader_path = os.path.join(os.path.dirname(__file__), "vinted_downloader.py")
+            cmd = [sys.executable, downloader_path] + modified_args
             print(f"Eseguendo: {' '.join(cmd)}")
             result = subprocess.run(cmd, capture_output=False)
             
@@ -151,7 +154,8 @@ def run_vinted_downloader_with_organization(args_list, custom_closet_dir=None, s
     else:
         # Caso normale: download diretto nella directory specificata
         # Esegui il downloader originale
-        cmd = [sys.executable, "vinted_downloader.py"] + args_list
+        downloader_path = os.path.join(os.path.dirname(__file__), "vinted_downloader.py")
+        cmd = [sys.executable, downloader_path] + args_list
         print(f"Eseguendo: {' '.join(cmd)}")
         result = subprocess.run(cmd, capture_output=False)
         
@@ -313,6 +317,29 @@ def add_tracking_record_from_org_result(item_url, org_result, output_path):
         print(f"⚠️  Warning: Errore durante il tracking: {e}")
 
 
+def cleanup_temp_files():
+    """
+    Rimuove i file temporanei creati durante il download:
+    - item.json
+    - item_summary
+    """
+    temp_files = ["item.json", "item_summary"]
+    cleaned_count = 0
+    
+    for temp_file in temp_files:
+        try:
+            temp_path = Path(temp_file)
+            if temp_path.exists():
+                temp_path.unlink()  # Rimuove il file
+                logger.debug(f"🗑️ Rimosso file temporaneo: {temp_file}")
+                cleaned_count += 1
+        except Exception as e:
+            logger.debug(f"⚠️ Errore rimozione {temp_file}: {e}")
+    
+    if cleaned_count > 0:
+        logger.debug(f"🧹 Pulizia completata: {cleaned_count} file temporanei rimossi")
+
+
 def main():
     """Funzione principale"""
     # Passa tutti gli argomenti al wrapper (escluso il nome dello script)
@@ -380,6 +407,9 @@ def main():
                 print(f"   - {error}")
     else:
         print(f"Download fallito (codice: {return_code})")
+    
+    # Pulizia file temporanei alla fine del processo
+    cleanup_temp_files()
         
     return return_code
 

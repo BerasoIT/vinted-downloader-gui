@@ -6,6 +6,11 @@ output*/
 .mypy_cache/
 .pytest_cache/
 closet/
+data/
+config/
+.venv/
+*.pyc
+.vscode/
 test_dir/item.json
 .vscode/launch.json
 .vscode/settings.json
@@ -20,3 +25,5 @@ debug_gui.log.backup
 vinted-downloader-gui.desktop
 debug_gui.log
 todo.txt
+tests/
+

@@ -15,6 +15,8 @@ import logging
 import os
 from pathlib import Path
 from typing import Dict, Any, List
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
 from log_manager import get_logger
 
 # Usa il nuovo sistema di logging centralizzato
@@ -26,7 +28,9 @@ class VintedFileOrganizer:
     
     def __init__(self, base_output_dir: Path):
         self.base_output_dir = Path(base_output_dir)
-        self.closet_dir = self.base_output_dir / "closet"
+        # Il closet è sempre nella directory principale del progetto
+        project_root = Path(__file__).parent.parent.parent
+        self.closet_dir = project_root / "closet"
         
     def organize_downloaded_files(self) -> Dict[str, Any]:
         """

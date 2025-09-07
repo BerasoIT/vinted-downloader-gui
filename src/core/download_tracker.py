@@ -21,13 +21,17 @@ import os
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 import re
+import sys
+import glob
+from datetime import datetime
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
 from log_manager import get_logger
 
 # Usa il nuovo sistema di logging centralizzato
 logger = get_logger(__name__)
 
-# File di tracciamento
-TRACKING_FILE = "downloaded_items.json"
+# File di tracciamento - percorso relativo alla directory principale del progetto
+TRACKING_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "downloaded_items.json")
 
 class DownloadTracker:
     """Gestisce il tracciamento degli articoli già scaricati"""
@@ -52,6 +56,46 @@ class DownloadTracker:
             self._data = {}
         
         return self._data
+    
+    def create_backup(self) -> bool:
+        """
+        Crea un backup del file di tracking prima di modificarlo.
+        Mantiene massimo 3 backup, cancellando il più vecchio.
+        """
+        try:
+            if not self.tracking_file.exists():
+                return True  # Nessun file da backuppare
+            
+            # Directory dei backup (stessa del file principale)
+            backup_dir = self.tracking_file.parent
+            base_name = self.tracking_file.stem  # "downloaded_items"
+            
+            # Timestamp per il backup
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_name = f"{base_name}_backup_{timestamp}.json"
+            backup_path = backup_dir / backup_name
+            
+            # Crea il backup
+            with open(self.tracking_file, 'r', encoding='utf-8') as src:
+                with open(backup_path, 'w', encoding='utf-8') as dst:
+                    dst.write(src.read())
+            
+            logger.debug(f"💾 Backup creato: {backup_name}")
+            
+            # Mantieni solo gli ultimi 3 backup
+            pattern = str(backup_dir / f"{base_name}_backup_*.json")
+            backup_files = sorted(glob.glob(pattern))
+            
+            while len(backup_files) > 3:
+                oldest = backup_files.pop(0)
+                os.remove(oldest)
+                logger.debug(f"🗑️ Rimosso backup vecchio: {Path(oldest).name}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Errore creazione backup: {e}")
+            return False
     
     def save_tracking_data(self) -> bool:
         """Salva i dati di tracciamento nel file JSON"""
@@ -122,6 +166,9 @@ class DownloadTracker:
             }
             
             logger.debug(f"📝 Aggiunto record: {username} -> {article_key} ({title}) - {img_count} immagini")
+            
+            # Crea backup prima di salvare
+            self.create_backup()
             
             # Salva immediatamente
             return self.save_tracking_data()
