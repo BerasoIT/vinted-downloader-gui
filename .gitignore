@@ -18,6 +18,12 @@ tests/test_clipboard.py
 .gitignore
 tests/test_organization.py
 item_summary
+
+# Build files
+build/
+dist/
+*.spec
+*.exe
 downloaded_items_backup.json
 downloaded_items.json
 item.json

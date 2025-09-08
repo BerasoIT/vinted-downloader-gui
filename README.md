@@ -19,10 +19,10 @@ All core downloading functionality is provided by the original vinted-downloader
 🔧 **In Development** - Features being implemented:
 
 - ✅ GUI interface for easy downloading
-- ✅ Automatic file organization (closet/username/title_001.webp)
+- ✅ Automatic file organization
 - ✅ Duplicate download prevention with tracking
 - ✅ Debug logging system for troubleshooting
-- 🚧 User documentation and installation guides
+- ✅ Queue management for batch downloading multiple links
 - 🚧 Error handling improvements
 - 🚧 Additional GUI features
 
