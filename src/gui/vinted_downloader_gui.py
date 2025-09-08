@@ -152,7 +152,7 @@ class VintedDownloaderGUI:
         queue_list_frame.columnconfigure(0, weight=1)
         
         # Listbox per mostrare gli URL in coda
-        self.queue_listbox = tk.Listbox(queue_list_frame, height=7, selectmode=tk.SINGLE)
+        self.queue_listbox = tk.Listbox(queue_list_frame, height=9, selectmode=tk.SINGLE)
         self.queue_listbox.grid(row=0, column=0, sticky="ew", padx=(0, 5))
         
         # Scrollbar per la listbox
@@ -275,20 +275,41 @@ class VintedDownloaderGUI:
         # Mantieni riferimento alla barra principale per compatibilità
         self.progress = self.links_progress
         
-        # Output text area
-        output_frame = ttk.LabelFrame(main_frame, text="Output", padding="5")
-        output_frame.grid(row=8, column=0, columnspan=3, sticky="nsew", pady=5)
-        output_frame.columnconfigure(0, weight=1)
-        output_frame.rowconfigure(0, weight=1)
-        main_frame.rowconfigure(8, weight=1)
+        # Output section con header collapsible
+        output_header_frame = ttk.Frame(main_frame)
+        output_header_frame.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        output_header_frame.columnconfigure(1, weight=1)
         
-        self.output_text = scrolledtext.ScrolledText(output_frame, height=15, width=80, state='disabled')
+        # Bottone expand/collapse per output
+        self.output_toggle_btn = ttk.Button(output_header_frame, text="▶", width=3, 
+                                          command=self.toggle_output)
+        self.output_toggle_btn.grid(row=0, column=0, padx=(0, 5))
+        
+        ttk.Label(output_header_frame, text="Output Download", font=('TkDefaultFont', 9, 'bold')).grid(row=0, column=1, sticky="w")
+        
+        # Frame per l'output (inizialmente nascosto)
+        self.output_frame = ttk.Frame(main_frame, padding="5")
+        # Non fare grid inizialmente (nascosto)
+        self.output_frame.columnconfigure(0, weight=1)
+        self.output_frame.rowconfigure(0, weight=1)
+        
+        self.output_text = scrolledtext.ScrolledText(self.output_frame, height=10, width=80, state='disabled')
         self.output_text.grid(row=0, column=0, sticky="nsew")
         
-        # Status bar
+        # Stato del toggle output (inizialmente nascosto)
+        self.output_expanded = False
+        
+        # Configurazione per finestra dinamica
+        self.setup_dynamic_window()
+        
+        # Status bar con info fullscreen
+        status_frame = ttk.Frame(main_frame)
+        status_frame.grid(row=10, column=0, columnspan=3, sticky="ew", pady=(5, 0))
+        status_frame.columnconfigure(0, weight=1)
+        
         self.status_var = tk.StringVar(value="Pronto")
-        status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
-        status_bar.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(5, 0))
+        status_bar = ttk.Label(status_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+        status_bar.grid(row=0, column=0, sticky="ew")
         
     def paste_from_clipboard(self):
         """Incolla URL dalla clipboard (metodo manuale, ora principalmente per il bottone)"""
@@ -369,6 +390,106 @@ class VintedDownloaderGUI:
             self.options_frame.grid()
             self.options_toggle_btn.config(text="▼")
             self.options_expanded.set(True)
+            
+        # Ridimensiona finestra dinamicamente
+        self.root.after(10, self.resize_window_to_content)
+    
+    def toggle_output(self):
+        """Espande/collassa la sezione output"""
+        if self.output_expanded:
+            # Collassa l'output
+            self.output_frame.grid_remove()
+            self.output_toggle_btn.config(text="▶")
+            self.output_expanded = False
+        else:
+            # Espande l'output
+            self.output_frame.grid(row=9, column=0, columnspan=3, sticky="nsew", pady=5)
+            # Configura il peso della riga per espandere
+            self.output_frame.master.rowconfigure(9, weight=1)
+            self.output_toggle_btn.config(text="▼")
+            self.output_expanded = True
+            
+        # Ridimensiona finestra dinamicamente
+        self.root.after(10, self.resize_window_to_content)
+    
+    def setup_dynamic_window(self):
+        """Configura la finestra per il ridimensionamento dinamico"""
+        # Disabilita completamente il ridimensionamento manuale
+        self.root.resizable(False, False)
+        
+        # Ulteriore blocco per assicurarsi che non sia ridimensionabile
+        self.root.maxsize(width=1200, height=1200)  # Limite massimo uguale alla dimensione massima
+        self.root.minsize(width=850, height=600)    # Dimensione minima
+        
+        # Bind per intercettare tentativi di ridimensionamento
+        self.root.bind('<Configure>', self.on_window_configure)
+        
+        # Variabile per tracciare lo stato fullscreen
+        self.is_fullscreen = False
+        self.normal_geometry = None
+        
+        # Calcola e imposta la dimensione iniziale
+        self.resize_window_to_content()
+    
+    def on_window_configure(self, event):
+        """Intercetta i tentativi di ridimensionamento manuale"""
+        # Solo per eventi sulla finestra principale (non sui widget interni)
+        if event.widget == self.root:
+            # Se la geometria cambia per ragioni diverse dai nostri metodi,
+            # forza il ripristino della geometria corretta
+            if hasattr(self, 'normal_geometry') and self.normal_geometry:
+                current_geom = self.root.geometry()
+                if current_geom != self.normal_geometry and not self.is_fullscreen:
+                    # Piccolo delay per evitare loop infiniti
+                    self.root.after_idle(lambda: self.root.geometry(self.normal_geometry))
+    
+    def resize_window_to_content(self):
+        """Ridimensiona la finestra in base al contenuto visibile preservando la posizione"""
+        if self.is_fullscreen:
+            return  # Non ridimensionare se in fullscreen
+            
+        # Forza l'aggiornamento del layout
+        self.root.update_idletasks()
+        
+        # Salva la posizione corrente
+        current_x = self.root.winfo_x()
+        current_y = self.root.winfo_y()
+        
+        # Calcola la dimensione necessaria
+        req_width = self.root.winfo_reqwidth()
+        req_height = self.root.winfo_reqheight()
+        
+        # Aggiungi un po' di padding
+        padding_width = 50
+        padding_height = 50
+        
+        # Dimensioni minime e massime più generose
+        min_width = 850  # Aumentato da 800
+        max_width = 1200
+        min_height = 600  # Aumentato da 400
+        
+        # Ottieni dimensioni schermo per il massimo
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        max_height = int(screen_height * 0.9)  # 90% dello schermo
+        
+        # Calcola dimensioni finali
+        final_width = max(min_width, min(req_width + padding_width, max_width))
+        final_height = max(min_height, min(req_height + padding_height, max_height))
+        
+        # Usa la posizione corrente solo se è valida, altrimenti centra
+        if current_x < 0 or current_y < 0 or (current_x == 0 and current_y == 0):
+            # Centra solo se la posizione non è valida (prima volta)
+            center_x = (screen_width - final_width) // 2
+            center_y = (screen_height - final_height) // 2
+            center_x = max(0, center_x)
+            center_y = max(0, center_y)
+            self.root.geometry(f"{final_width}x{final_height}+{center_x}+{center_y}")
+            self.normal_geometry = f"{final_width}x{final_height}+{center_x}+{center_y}"
+        else:
+            # Mantieni la posizione corrente
+            self.root.geometry(f"{final_width}x{final_height}+{current_x}+{current_y}")
+            self.normal_geometry = f"{final_width}x{final_height}+{current_x}+{current_y}"
     
     # =====================
     # GESTIONE DOWNLOAD QUEUE
@@ -1030,8 +1151,8 @@ def main():
         
     root = tk.Tk()
     root.title("Vinted Downloader GUI")
-    root.geometry("800x750")  # Aumentata altezza da 600 a 750
-    root.resizable(True, True)
+    # Rimuoviamo la geometria fissa - sarà gestita dinamicamente
+    # root.geometry("900x750")  # Sarà calcolata automaticamente
     
     # SOLUZIONE DEFINITIVA: Forza la finestra ad apparire
     root.state('normal')  # Assicura che non sia minimizzata
@@ -1041,46 +1162,17 @@ def main():
     root.focus_force()    # Forza il focus
     
     # Centra la finestra sul monitor primario (gestione multi-monitor)
-    root.update_idletasks()
-    width = 800
-    height = 750
-    
-    # Strategia per multi-monitor: posiziona temporaneamente in alto a sinistra
-    # poi calcola centro basato sulla posizione effettiva
-    root.geometry(f'{width}x{height}+100+100')
+    # Il sistema dinamico gestirà automaticamente le dimensioni
     root.update_idletasks()
     
-    # Ora ottieni le dimensioni dello schermo su cui si trova la finestra
-    root_x = root.winfo_rootx()
-    root_y = root.winfo_rooty()
+    # Posiziona temporaneamente la finestra per il calcolo
+    root.geometry("+100+100")
     
-    # Per sistemi multi-monitor, questo dovrebbe dare le dimensioni corrette
-    # del monitor su cui si trova la finestra
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
-    
-    # Se lo schermo è molto largo (multi-monitor), usa una strategia diversa
-    if screen_width > 2560:  # Probabile setup multi-monitor
-        # Centra sul primo monitor (assumendo 1920px di larghezza)
-        monitor_width = 1920
-        monitor_height = 1080
-        x = (monitor_width // 2) - (width // 2)
-        y = (monitor_height // 2) - (height // 2)
-    else:
-        # Monitor singolo o risoluzione normale
-        x = (screen_width // 2) - (width // 2)
-        y = (screen_height // 2) - (height // 2)
-    
-    # Assicura coordinate positive
-    x = max(0, x)
-    y = max(0, y)
-    
-    root.geometry(f'{width}x{height}+{x}+{y}')
+    # Crea l'istanza GUI che gestirà le dimensioni dinamicamente
+    app = VintedDownloaderGUI(root)
     
     # Disattiva topmost dopo 1 secondo per permettere normale utilizzo
     root.after(1000, lambda: root.attributes('-topmost', False))
-    
-    app = VintedDownloaderGUI(root)
     
     # Gestione chiusura finestra
     def on_closing():
