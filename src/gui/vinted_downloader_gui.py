@@ -414,34 +414,26 @@ class VintedDownloaderGUI:
     
     def setup_dynamic_window(self):
         """Configura la finestra per il ridimensionamento dinamico"""
-        # Disabilita completamente il ridimensionamento manuale
-        self.root.resizable(False, False)
+        # Permetti il movimento ma limita il ridimensionamento attraverso min/max size identiche
+        # NOTA: Non uso resizable(False, False) perché impedisce anche il trascinamento
         
-        # Ulteriore blocco per assicurarsi che non sia ridimensionabile
-        self.root.maxsize(width=1200, height=1200)  # Limite massimo uguale alla dimensione massima
-        self.root.minsize(width=850, height=600)    # Dimensione minima
+        # Inizialmente imposta dimensioni base
+        initial_width = 850
+        initial_height = 600
         
-        # Bind per intercettare tentativi di ridimensionamento
-        self.root.bind('<Configure>', self.on_window_configure)
+        # Imposta min e max size uguali per impedire ridimensionamento manuale
+        # ma permettere il trascinamento
+        self.root.minsize(width=initial_width, height=initial_height)
+        self.root.maxsize(width=initial_width, height=initial_height)
         
         # Variabile per tracciare lo stato fullscreen
         self.is_fullscreen = False
         self.normal_geometry = None
+        self.current_width = initial_width
+        self.current_height = initial_height
         
         # Calcola e imposta la dimensione iniziale
         self.resize_window_to_content()
-    
-    def on_window_configure(self, event):
-        """Intercetta i tentativi di ridimensionamento manuale"""
-        # Solo per eventi sulla finestra principale (non sui widget interni)
-        if event.widget == self.root:
-            # Se la geometria cambia per ragioni diverse dai nostri metodi,
-            # forza il ripristino della geometria corretta
-            if hasattr(self, 'normal_geometry') and self.normal_geometry:
-                current_geom = self.root.geometry()
-                if current_geom != self.normal_geometry and not self.is_fullscreen:
-                    # Piccolo delay per evitare loop infiniti
-                    self.root.after_idle(lambda: self.root.geometry(self.normal_geometry))
     
     def resize_window_to_content(self):
         """Ridimensiona la finestra in base al contenuto visibile preservando la posizione"""
@@ -464,9 +456,9 @@ class VintedDownloaderGUI:
         padding_height = 50
         
         # Dimensioni minime e massime più generose
-        min_width = 850  # Aumentato da 800
+        min_width = 850
         max_width = 1200
-        min_height = 600  # Aumentato da 400
+        min_height = 600
         
         # Ottieni dimensioni schermo per il massimo
         screen_width = self.root.winfo_screenwidth()
@@ -476,6 +468,15 @@ class VintedDownloaderGUI:
         # Calcola dimensioni finali
         final_width = max(min_width, min(req_width + padding_width, max_width))
         final_height = max(min_height, min(req_height + padding_height, max_height))
+        
+        # Aggiorna min/max size per impedire ridimensionamento manuale
+        # ma permettere il trascinamento
+        self.root.minsize(width=final_width, height=final_height)
+        self.root.maxsize(width=final_width, height=final_height)
+        
+        # Salva le dimensioni correnti
+        self.current_width = final_width
+        self.current_height = final_height
         
         # Usa la posizione corrente solo se è valida, altrimenti centra
         if current_x < 0 or current_y < 0 or (current_x == 0 and current_y == 0):
@@ -590,10 +591,14 @@ class VintedDownloaderGUI:
     def process_download_queue(self):
         """Processa la coda di download in sequenza (da eseguire in thread separato)"""
         try:
+            # RESET: Tutti gli elementi tornano a 'pending' per ripartire da capo
+            self.download_queue.reset_all_to_pending()
+            self.root.after(0, self.refresh_queue_display)  # Aggiorna UI
+            
             pending_items = self.download_queue.get_pending()
             total_items = len(pending_items)
             
-            self.output_queue.put(f"\nAvvio download di {total_items} articoli dalla lista...\n")
+            self.output_queue.put(f"\nRiavvio download di TUTTI i {total_items} articoli nella lista...\n")
             
             # Imposta progress bar
             self.root.after(0, lambda: self.progress.config(maximum=total_items, value=0, mode='determinate'))
@@ -894,12 +899,12 @@ class VintedDownloaderGUI:
             messagebox.showwarning("Avviso", "Un download è già in corso")
             return
         
-        # Prima controlla se ci sono elementi in coda
-        pending_items = self.download_queue.get_pending()
+        # Prima controlla se ci sono elementi in coda (qualsiasi status)
+        all_queue_items = self.download_queue.get_all()
         
-        if pending_items:
+        if all_queue_items:
             # Se ci sono elementi in coda, avvia il download della coda
-            logger.debug(f"📋 DEBUG: Trovati {len(pending_items)} elementi in coda")
+            logger.debug(f"📋 DEBUG: Trovati {len(all_queue_items)} elementi in coda")
             self.start_queue_processing()
         else:
             # Se non ci sono elementi in coda, controlla l'URL singolo

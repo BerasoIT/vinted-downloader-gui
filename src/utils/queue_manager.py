@@ -98,6 +98,12 @@ class DownloadQueue:
     def count_pending(self) -> int:
         """Restituisce il numero di elementi pending"""
         return len(self.get_pending())
+    
+    def reset_all_to_pending(self):
+        """Resetta tutti gli elementi della coda a status 'pending'"""
+        for item in self.data.get("queue", []):
+            item["status"] = "pending"
+        self.save()
 
 
 # Istanza globale per facilità d'uso
