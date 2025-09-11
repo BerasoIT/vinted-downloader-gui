@@ -29,7 +29,7 @@ git push origin $VERSION
 
 echo "✅ Tag $VERSION creato e inviato!"
 echo ""
-echo "🎯 Prossimi passi:"
+echo "Prossimi passi:"
 echo "1. Vai su https://github.com/BerasoIT/vinted-downloader-gui/actions"
 echo "2. Verifica che il workflow 'Build and Release' sia in esecuzione"
 echo "3. Una volta completato, la release sarà disponibile automaticamente"

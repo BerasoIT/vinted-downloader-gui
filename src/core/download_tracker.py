@@ -50,7 +50,7 @@ class DownloadTracker:
                 logger.debug(f"📖 Caricati dati tracking da {self.tracking_file}")
             else:
                 self._data = {}
-                logger.debug(f"📝 File tracking non esistente, creata struttura vuota")
+                logger.debug(f"File tracking non esistente, creata struttura vuota")
         except (json.JSONDecodeError, IOError) as e:
             logger.warning(f"⚠️ Errore caricamento tracking file: {e}, uso struttura vuota")
             self._data = {}
@@ -148,7 +148,7 @@ class DownloadTracker:
             # Crea la struttura per l'utente se non esiste
             if username not in self._data:
                 self._data[username] = {}
-                logger.debug(f"👤 Creato nuovo utente nel tracking: {username}")
+                logger.debug(f"Creato nuovo utente nel tracking: {username}")
             
             # Genera una chiave unica per l'articolo (usa ID dall'URL se disponibile)
             item_id = self.extract_item_id_from_url(url)
@@ -165,7 +165,7 @@ class DownloadTracker:
                 "img_count": img_count
             }
             
-            logger.debug(f"📝 Aggiunto record: {username} -> {article_key} ({title}) - {img_count} immagini")
+            logger.debug(f"Aggiunto record: {username} -> {article_key} ({title}) - {img_count} immagini")
             
             # Crea backup prima di salvare
             self.create_backup()

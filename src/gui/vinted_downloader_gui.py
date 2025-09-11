@@ -64,7 +64,7 @@ class VintedDownloaderGUI:
     def __init__(self, root):
         # Inizializzazione GUI
         if debug_enabled:
-            logger.debug("🔧 DEBUG: Inizializzazione GUI")
+            logger.debug("DEBUG: Inizializzazione GUI")
         
         self.root = root
         self.debug_enabled = debug_enabled  # Rende accessibile la modalità debug
@@ -101,6 +101,11 @@ class VintedDownloaderGUI:
         self.total_images = 0
         self.downloaded_images = 0
         
+        # Statistiche finali per resoconto
+        self.total_users = set()  # Set per evitare duplicati
+        self.total_articles = 0
+        self.total_images_downloaded = 0
+        
         # Inizializza logging e queue manager
         self.log_manager = LogManager()
         self.download_queue = DownloadQueue()
@@ -112,6 +117,26 @@ class VintedDownloaderGUI:
         
     def setup_ui(self):
         """Configura l'interfaccia utente"""
+        # Configura stile personalizzato per progress bar
+        style = ttk.Style()
+        style.theme_use('clam')  # Tema più moderno
+        
+        # Stile per progress bar principale (articoli)
+        style.configure("Green.Horizontal.TProgressbar",
+                       background='#4CAF50',  # Verde
+                       troughcolor='#E0E0E0',
+                       borderwidth=1,
+                       lightcolor='#4CAF50',
+                       darkcolor='#4CAF50')
+        
+        # Stile per progress bar secondaria (immagini)
+        style.configure("Blue.Horizontal.TProgressbar", 
+                       background='#2196F3',  # Blu
+                       troughcolor='#E0E0E0',
+                       borderwidth=1,
+                       lightcolor='#2196F3',
+                       darkcolor='#2196F3')
+        
         # Main frame
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.grid(row=0, column=0, sticky="nsew")
@@ -262,14 +287,16 @@ class VintedDownloaderGUI:
         self.links_progress_label = ttk.Label(progress_frame, text="Articoli: 0/0 (0%)")
         self.links_progress_label.grid(row=0, column=0, sticky="w", pady=(0, 2))
         
-        self.links_progress = ttk.Progressbar(progress_frame, mode='determinate', maximum=100)
+        self.links_progress = ttk.Progressbar(progress_frame, mode='determinate', maximum=100, 
+                                            style="Green.Horizontal.TProgressbar", length=400)
         self.links_progress.grid(row=1, column=0, sticky="ew", pady=(0, 5))
         
         # Progress bar 2: Images progress  
         self.images_progress_label = ttk.Label(progress_frame, text="Immagini: 0/0 (0%)")
         self.images_progress_label.grid(row=2, column=0, sticky="w", pady=(0, 2))
         
-        self.images_progress = ttk.Progressbar(progress_frame, mode='determinate', maximum=100)
+        self.images_progress = ttk.Progressbar(progress_frame, mode='determinate', maximum=100,
+                                             style="Blue.Horizontal.TProgressbar", length=400)
         self.images_progress.grid(row=3, column=0, sticky="ew")
         
         # Mantieni riferimento alla barra principale per compatibilità
@@ -367,13 +394,13 @@ class VintedDownloaderGUI:
         enable_file_logging(enabled)
         
         if enabled:
-            logger.debug("📝 Logging su file abilitato")
+            logger.debug("Logging su file abilitato")
             messagebox.showinfo("Logging Abilitato", 
                                "Il logging dettagliato è stato abilitato.\n"
                                "I log verranno salvati in 'debug_gui.log'.\n"
                                "Questo file può essere condiviso per il debug.")
         else:
-            logger.debug("📝 Logging su file disabilitato")
+            logger.debug("Logging su file disabilitato")
             messagebox.showinfo("Logging Disabilitato", 
                                "Il logging su file è stato disabilitato.\n"
                                "I log non verranno più salvati su file.")
@@ -514,7 +541,7 @@ class VintedDownloaderGUI:
             self.refresh_queue_display()
             self.url_var.set("")  # Pulisci il campo
             if self.debug_enabled:
-                logger.debug(f"🔗 URL aggiunto alla lista: {url}")
+                logger.debug(f"URL aggiunto alla lista: {url}")
     
     def remove_from_queue(self):
         """Rimuove l'elemento selezionato dalla coda"""
@@ -531,7 +558,7 @@ class VintedDownloaderGUI:
             self.download_queue.remove(url)
             self.refresh_queue_display()
             if self.debug_enabled:
-                logger.debug(f"🗑️ URL rimosso dalla lista: {url}")
+                logger.debug(f"URL rimosso dalla lista: {url}")
     
     def clear_queue(self):
         """Svuota completamente la coda"""
@@ -544,7 +571,7 @@ class VintedDownloaderGUI:
             self.download_queue.clear()
             self.refresh_queue_display()
             if self.debug_enabled:
-                logger.debug("🧹 Lista download svuotata")
+                logger.debug("Lista download svuotata")
     
     def refresh_queue_display(self):
         """Aggiorna la visualizzazione della coda"""
@@ -558,16 +585,27 @@ class VintedDownloaderGUI:
             status = item.get('status', 'pending')
             # Mostra solo il titolo dell'articolo o ID dall'URL
             display_text = self.extract_title_from_url(url)
+            
+            # Aggiungi status colorati
             if status == 'completed':
-                display_text += " [✓ completato]"
+                display_text += " [SUCCESS]"
+                color = 'green'
             elif status == 'downloaded':
-                display_text += " [↓ scaricato]"
+                display_text += " [SUCCESS]"  
+                color = 'green'
             elif status == 'processing':
-                display_text += " [⟳ in corso]"
+                display_text += " [PROCESSING]"
+                color = 'blue'
             elif status == 'failed':
-                display_text += " [✗ fallito]"
-            # pending non ha indicatore
+                display_text += " [ERROR]"
+                color = 'red'
+            else:  # pending o altro
+                display_text += " [PENDING]"
+                color = 'black'
+                
             self.queue_listbox.insert(tk.END, display_text)
+            # Colora l'elemento
+            self.queue_listbox.itemconfig(tk.END, fg=color)
         
         # Aggiorna il conteggio
         count = self.download_queue.count()
@@ -598,10 +636,15 @@ class VintedDownloaderGUI:
             pending_items = self.download_queue.get_pending()
             total_items = len(pending_items)
             
-            self.output_queue.put(f"\nRiavvio download di TUTTI i {total_items} articoli nella lista...\n")
+            # Reset statistiche
+            self.total_users = set()
+            self.total_articles = 0
+            self.total_images_downloaded = 0
             
-            # Imposta progress bar
-            self.root.after(0, lambda: self.progress.config(maximum=total_items, value=0, mode='determinate'))
+            # Imposta progress bar articoli
+            self.set_total_links(total_items)
+            
+            self.output_queue.put(f"\nRiavvio download di TUTTI i {total_items} articoli nella lista...\n")
             
             for i, item in enumerate(pending_items, 1):
                 url = item['url']
@@ -610,16 +653,21 @@ class VintedDownloaderGUI:
                 self.download_queue.update_status(url, 'processing')
                 self.root.after(0, self.refresh_queue_display)  # Aggiorna UI nel thread principale
                 
-                self.output_queue.put(f"\n[{i}/{total_items}] Download: {self.extract_title_from_url(url)}")
+                title = self.extract_title_from_url(url)
+                self.output_queue.put(f"\n[{i}/{total_items}] Download: {title}")
                 
-                # Simula il download singolo impostando l'URL e chiamando start_download
+                # Reset progress immagini per questo articolo
+                self.root.after(0, lambda: self.reset_progress_bars_images())
+                
+                # Simula il download singolo impostando l'URL
                 self.root.after(0, lambda u=url: self.url_var.set(u))
                 
                 # Avvia il download e attendi che finisca
                 success = self.download_single_item_from_queue(url)
                 
-                # Aggiorna progress bar
-                self.root.after(0, lambda v=i: self.progress.config(value=v))
+                # Aggiorna progress bar articoli
+                self.processed_links = i
+                self.root.after(0, self.update_links_progress)
                 
                 # Aggiorna status in base al risultato
                 if success:
@@ -637,7 +685,9 @@ class VintedDownloaderGUI:
                 
                 self.root.after(0, self.refresh_queue_display)  # Aggiorna UI
             
-            self.output_queue.put(f"\nDownload lista completato! {total_items} articoli processati.")
+            # RESOCONTO FINALE
+            self.generate_final_report(total_items)
+            
             self.root.after(0, lambda: self.url_var.set(""))  # Pulisci URL field
             
             # Pulizia finale file temporanei
@@ -657,12 +707,29 @@ class VintedDownloaderGUI:
         self.status_var.set("Pronto")
     
     def download_single_item_from_queue(self, url):
-        """Scarica un singolo articolo dalla coda eseguendo il download reale"""
+        """Scarica un singolo articolo dalla coda eseguendo il download reale con parsing output"""
         try:
             # Costruisci il comando per il download con organizzazione
             if self.auto_organize_enabled.get():
                 core_organized_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "core", "vinted_downloader_organized.py")
                 cmd = ["python3", core_organized_path]
+                
+                # Opzioni specifiche per organizzazione
+                if self.seller_var.get():
+                    cmd.append("--seller")
+                if self.all_items_var.get():
+                    cmd.append("--all")
+                if not self.skip_duplicates_var.get():
+                    cmd.append("--force-download")
+                
+                # Directory di output
+                cmd.extend(["-o", str(Path.cwd())])
+                
+                # Directory closet
+                if self.custom_closet_dir.get() and self.closet_directory.get():
+                    cmd.extend(["--closet-dir", self.closet_directory.get()])
+                else:
+                    cmd.extend(["--closet-dir", str(Path.cwd() / "closet")])
             else:
                 core_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "core", "vinted_downloader.py")
                 cmd = ["python3", core_path]
@@ -674,17 +741,32 @@ class VintedDownloaderGUI:
             # Aggiungi URL
             cmd.append(url)
             
-            # Esegui il comando di download
-            result = subprocess.run(cmd, 
-                                  capture_output=True, 
-                                  text=True, 
-                                  cwd=os.path.dirname(os.path.dirname(__file__)))
+            # Esegui il comando con output in tempo reale
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                bufsize=1,
+                cwd=os.path.dirname(os.path.dirname(__file__))
+            )
             
-            # Controlla se il download è andato a buon fine
-            success = result.returncode == 0
+            # Leggi output linea per linea e fai parsing
+            success = True
+            if process.stdout:
+                for line in iter(process.stdout.readline, ''):
+                    if line:
+                        # Parse dell'output per aggiornare le progress bar
+                        self.parse_download_output(line)
+                        # Mostra anche l'output
+                        self.output_queue.put(("output", line))
+            
+            # Attendi completamento
+            return_code = process.wait()
+            success = return_code == 0
             
             if not success and self.debug_enabled:
-                logger.debug(f"❌ Errore download {url}: {result.stderr}")
+                logger.debug(f"Errore download {url}: return code {return_code}")
             
             # Pulizia file temporanei di sicurezza
             self.cleanup_temp_files()
@@ -693,7 +775,7 @@ class VintedDownloaderGUI:
             
         except Exception as e:
             if self.debug_enabled:
-                logger.debug(f"❌ Errore download {url}: {e}")
+                logger.debug(f"Errore download {url}: {e}")
             return False
     
     def cleanup_temp_files(self):
@@ -707,10 +789,10 @@ class VintedDownloaderGUI:
                 if os.path.exists(temp_path):
                     os.remove(temp_path)
                     if self.debug_enabled:
-                        logger.debug(f"🗑️ Rimosso file temporaneo: {temp_file}")
+                        logger.debug(f"Rimosso file temporaneo: {temp_file}")
             except Exception as e:
                 if self.debug_enabled:
-                    logger.debug(f"⚠️ Errore rimozione {temp_file}: {e}")
+                    logger.debug(f"Errore rimozione {temp_file}: {e}")
     
     def reset_progress_bars(self):
         """Resetta entrambe le progress bar"""
@@ -721,24 +803,51 @@ class VintedDownloaderGUI:
         self.update_links_progress()
         self.update_images_progress()
     
+    def reset_progress_bars_images(self):
+        """Resetta solo la progress bar delle immagini"""
+        self.total_images = 0
+        self.downloaded_images = 0
+        self.update_images_progress()
+    
+    def generate_final_report(self, total_processed):
+        """Genera il resoconto finale delle statistiche"""
+        users_count = len(self.total_users)
+        
+        report = f"""
+{'='*60}
+RESOCONTO FINALE DOWNLOAD
+{'='*60}
+Utenti elaborati: {users_count}
+Articoli processati: {total_processed}
+Immagini totali scaricate: {self.total_images_downloaded}
+
+Dettaglio utenti: {', '.join(sorted(self.total_users)) if self.total_users else 'Nessuno'}
+
+Download completato con successo!
+{'='*60}
+"""
+        self.output_queue.put(report)
+    
     def update_links_progress(self):
         """Aggiorna la progress bar dei link"""
         if self.total_links > 0:
             percentage = (self.processed_links / self.total_links) * 100
-            self.links_progress.config(value=percentage)
+            # Progress bar da 0 a 100 (percentuale)
+            self.links_progress.config(maximum=100, value=percentage)
             self.links_progress_label.config(text=f"Articoli: {self.processed_links}/{self.total_links} ({percentage:.0f}%)")
         else:
-            self.links_progress.config(value=0)
+            self.links_progress.config(maximum=100, value=0)
             self.links_progress_label.config(text="Articoli: 0/0 (0%)")
     
     def update_images_progress(self):
         """Aggiorna la progress bar delle immagini"""
         if self.total_images > 0:
             percentage = (self.downloaded_images / self.total_images) * 100
-            self.images_progress.config(value=percentage)
+            # Progress bar da 0 a 100 (percentuale)
+            self.images_progress.config(maximum=100, value=percentage)
             self.images_progress_label.config(text=f"Immagini: {self.downloaded_images}/{self.total_images} ({percentage:.0f}%)")
         else:
-            self.images_progress.config(value=0)
+            self.images_progress.config(maximum=100, value=0)
             self.images_progress_label.config(text="Immagini: 0/0 (0%)")
     
     def set_total_links(self, total):
@@ -768,6 +877,7 @@ class VintedDownloaderGUI:
         import re
         
         line_lower = line.lower().strip()
+        original_line = line.strip()
         
         # Rileva il numero totale di immagini da "Found data: X images"
         found_data_match = re.search(r'found data:?\s*(\d+)\s*images?', line_lower)
@@ -776,22 +886,60 @@ class VintedDownloaderGUI:
             self.set_total_images(total_images)
             return
         
+        # Rileva informazioni utente per statistiche (pattern più ampi e precisi)
+        user_patterns = [
+            r'seller:\s*([^\s,\]\)\n]+)',  # "seller: username"
+            r'user:\s*([^\s,\]\)\n]+)',    # "user: username"  
+            r'username:\s*([^\s,\]\)\n]+)', # "username: username"
+            r'member/([^/\s,\]\)\n]+)/',    # URL tipo "/member/username/"
+            r'owner:\s*([^\s,\]\)\n]+)',    # "owner: username"
+            r'by\s+([^\s,\]\)\n]+)',        # "by username"
+        ]
+        
+        for pattern in user_patterns:
+            user_match = re.search(pattern, line_lower)
+            if user_match:
+                username = user_match.group(1).strip()
+                # Filtra username validi (almeno 3 caratteri, no numeri puri, no "vinted")
+                if username and len(username) >= 3 and not username.isdigit() and "vinted" not in username:
+                    self.total_users.add(username)
+                    break
+                    
+        # Rileva download di immagini specifiche - Pattern migliorati
+        resource_patterns = [
+            r'downloading resource\s+(\d+)[/\s](\d+)',
+            r'downloading image\s+(\d+)\s+of\s+(\d+)',
+            r'image\s+(\d+)/(\d+)',
+            r'download\s+(\d+)[/\s](\d+)',
+            r'saving image\s+(\d+)\s+of\s+(\d+)',
+        ]
+        
+        for pattern in resource_patterns:
+            resource_match = re.search(pattern, line_lower)
+            if resource_match:
+                current = int(resource_match.group(1))
+                total = int(resource_match.group(2))
+                # Aggiorna progress immagini
+                if self.total_images != total:
+                    self.set_total_images(total)
+                # Aggiorna immagini scaricate
+                self.downloaded_images = current
+                self.root.after(0, self.update_images_progress)
+                return
+        
         # Rileva quando inizia un nuovo articolo
-        if "downloading details" in line_lower:
-            if self.total_links == 0:
-                # Prima volta: imposta total_links a 1 (singolo articolo)
-                self.set_total_links(1)
+        if any(keyword in line_lower for keyword in ["downloading details", "processing item", "fetching item", "processing:", "downloading article"]):
+            self.total_articles += 1
             return
         
-        # Rileva quando un'immagine viene scaricata
-        if "downloading resource" in line_lower:
-            self.increment_downloaded_images()
+        # Rileva quando un'immagine viene completata (conteggio totale)
+        if any(keyword in line_lower for keyword in ["saved:", "downloaded:", "image saved", "file saved"]) and any(ext in line_lower for ext in [".jpg", ".png", ".webp", ".jpeg"]):
+            self.total_images_downloaded += 1
             return
         
         # Rileva completamento articolo
-        if "organizzazione" in line_lower or "download completato" in line_lower:
-            if self.processed_links < self.total_links:
-                self.increment_processed_links()
+        if any(keyword in line_lower for keyword in ["organizzazione", "download completato", "saved", "done", "finished"]):
+            # Non incrementare processed_links qui, lo fa il processo principale
             return
         
     def monitor_clipboard(self):
@@ -812,7 +960,7 @@ class VintedDownloaderGUI:
                 
                 # Log per URL Vinted validi rilevati
                 if self.debug_enabled:
-                    logger.debug(f"✅ URL Vinted rilevato: {current_clipboard}")
+                    logger.debug(f"URL Vinted rilevato: {current_clipboard}")
                 
                 # Aggiungi automaticamente alla queue
                 added_item = self.download_queue.add(current_clipboard)
@@ -821,7 +969,7 @@ class VintedDownloaderGUI:
                     title = self.extract_title_from_url(current_clipboard)
                     self.status_var.set(f"URL aggiunto automaticamente alla lista: {title}")
                     if self.debug_enabled:
-                        logger.debug(f"🔗 URL aggiunto automaticamente alla lista: {current_clipboard}")
+                        logger.debug(f"URL aggiunto automaticamente alla lista: {current_clipboard}")
                 else:
                     self.status_var.set("URL già presente nella lista")
                 
@@ -890,7 +1038,7 @@ class VintedDownloaderGUI:
     def start_download(self):
         """Avvia il processo di download: prima la coda, poi singolo URL"""
         # DEBUG BREAKPOINT 4: Inizio Download
-        logger.debug("🚀 DEBUG: Avvio download")
+        logger.debug("DEBUG: Avvio download")
         
         # Reset delle progress bar
         self.reset_progress_bars()
@@ -904,17 +1052,17 @@ class VintedDownloaderGUI:
         
         if all_queue_items:
             # Se ci sono elementi in coda, avvia il download della coda
-            logger.debug(f"📋 DEBUG: Trovati {len(all_queue_items)} elementi in coda")
+            logger.debug(f"DEBUG: Trovati {len(all_queue_items)} elementi in coda")
             self.start_queue_processing()
         else:
             # Se non ci sono elementi in coda, controlla l'URL singolo
-            logger.debug("🎯 DEBUG: Nessun elemento in coda, controllo URL singolo")
+            logger.debug("DEBUG: Nessun elemento in coda, controllo URL singolo")
             logger.debug(f"🔧 DEBUG: Organizzazione abilitata: {self.auto_organize_enabled.get()}")
             logger.debug(f"📂 DEBUG: Directory closet: {self.closet_directory.get()}")
-            logger.debug(f"🎯 DEBUG: URL: {self.url_var.get()}")
+            logger.debug(f"DEBUG: URL: {self.url_var.get()}")
             
             if not self.validate_inputs():
-                logger.debug("❌ DEBUG: Validazione input fallita")
+                logger.debug("DEBUG: Validazione input fallita")
                 return
                 
             self.start_single_download()
@@ -951,7 +1099,7 @@ class VintedDownloaderGUI:
     def run_download(self):
         """Esegue il download nel thread separato"""
         # DEBUG BREAKPOINT 5: Esecuzione Download
-        logger.debug("⚡ DEBUG: Esecuzione download nel thread")
+        logger.debug("DEBUG: Esecuzione download nel thread")
         
         try:
             # Fase 1: Preparazione comando (10%)
@@ -961,7 +1109,7 @@ class VintedDownloaderGUI:
             # Scegli il comando in base alle impostazioni
             if self.auto_organize_enabled.get():
                 # DEBUG: Wrapper con organizzazione
-                logger.debug("📁 DEBUG: Usando wrapper con organizzazione")
+                logger.debug("DEBUG: Usando wrapper con organizzazione")
                 
                 # Usa il wrapper con organizzazione
                 core_organized_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "core", "vinted_downloader_organized.py")
@@ -1151,7 +1299,7 @@ def main():
     missing_files = [f for f in required_files if not Path(f).exists()]
     
     if missing_files:
-        print(f"❌ File mancanti: {', '.join(missing_files)}")
+        print(f"File mancanti: {', '.join(missing_files)}")
         return
         
     root = tk.Tk()

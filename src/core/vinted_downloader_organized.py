@@ -142,7 +142,7 @@ def run_vinted_downloader_with_organization(args_list, custom_closet_dir=None, s
                         for summary_file in actual_download_dir.glob("item_summary"):
                             shutil.move(str(summary_file), str(output_path / summary_file.name))
                         
-                        # 📝 TRACKING: Aggiungi record di download al tracking
+                        # TRACKING: Aggiungi record di download al tracking
                         add_tracking_record_from_org_result(item_url, org_result, output_path)
                     
                     return result.returncode, org_result
@@ -181,7 +181,7 @@ def run_vinted_downloader_with_organization(args_list, custom_closet_dir=None, s
                     print("Directory closet personalizzata è uguale a quella predefinita, uso organizzazione normale")
                     org_result = organize_vinted_download(str(output_path))
                     
-                    # 📝 TRACKING: Aggiungi record di download al tracking
+                    # TRACKING: Aggiungi record di download al tracking
                     if org_result["success"]:
                         add_tracking_record_from_org_result(item_url, org_result, output_path)
                 else:
@@ -218,7 +218,7 @@ def run_vinted_downloader_with_organization(args_list, custom_closet_dir=None, s
                         # Aggiorna il risultato con la nuova posizione
                         org_result["final_location"] = str(custom_closet)
                         
-                        # 📝 TRACKING: Aggiungi record di download al tracking
+                        # TRACKING: Aggiungi record di download al tracking
                         add_tracking_record_from_org_result(item_url, org_result, output_path)
             else:
                 # Organizzazione normale
@@ -230,7 +230,7 @@ def run_vinted_downloader_with_organization(args_list, custom_closet_dir=None, s
                     print(f"File organizzati: {len(org_result.get('moved_files', []))}")
                     print(f"Posizione finale: {org_result.get('final_location', 'N/A')}")
                     
-                    # 📝 TRACKING: Aggiungi record di download al tracking
+                    # TRACKING: Aggiungi record di download al tracking
                     add_tracking_record_from_org_result(item_url, org_result, output_path)
                     
                 else:
@@ -266,7 +266,7 @@ def add_tracking_record_from_org_result(item_url, org_result, output_path):
         with open(item_json_path, 'r', encoding='utf-8') as f:
             item_data = json.load(f)
         
-        logger.debug(f"📊 DEBUG: Dati item.json caricati: {len(str(item_data))} caratteri")
+        logger.debug(f"DEBUG: Dati item.json caricati: {len(str(item_data))} caratteri")
         
         # Estrai username usando la stessa logica dell'organizer
         username = ""
@@ -280,7 +280,7 @@ def add_tracking_record_from_org_result(item_url, org_result, output_path):
         except (KeyError, TypeError) as e:
             logger.debug(f"🔍 DEBUG: Errore estrazione username: {e}")
             
-        logger.debug(f"👤 DEBUG: Username estratto: '{username}'")
+        logger.debug(f"DEBUG: Username estratto: '{username}'")
             
         # Estrai titolo
         title = ""
@@ -290,7 +290,7 @@ def add_tracking_record_from_org_result(item_url, org_result, output_path):
         except (KeyError, TypeError) as e:
             logger.debug(f"🔍 DEBUG: Errore estrazione title: {e}")
         
-        logger.debug(f"📝 DEBUG: Titolo estratto: '{title}'")
+        logger.debug(f"DEBUG: Titolo estratto: '{title}'")
         
         if not username or not title:
             logger.warning(f"⚠️  Warning: Informazioni incomplete per tracking (username='{username}', title='{title}')")
@@ -299,15 +299,15 @@ def add_tracking_record_from_org_result(item_url, org_result, output_path):
             
         # Conta le immagini spostate
         img_count = len(org_result.get('moved_files', []))
-        logger.debug(f"📊 DEBUG: Conteggio immagini: {img_count}")
+        logger.debug(f"DEBUG: Conteggio immagini: {img_count}")
         
         # Aggiungi il record al tracker
         logger.debug(f"💾 DEBUG: Aggiunta record al tracker...")
         success = tracker.add_download_record(username, title, item_url, img_count)
         
         if success:
-            logger.debug(f"📝 Tracking aggiornato: {username} -> {title} ({img_count} immagini)")
-            print(f"📝 Tracking aggiornato: {username} -> {title} ({img_count} immagini)")
+            logger.debug(f"Tracking aggiornato: {username} -> {title} ({img_count} immagini)")
+            print(f"Tracking aggiornato: {username} -> {title} ({img_count} immagini)")
         else:
             logger.warning("⚠️  Warning: Errore nel salvataggio del tracking")
             print("⚠️  Warning: Errore nel salvataggio del tracking")

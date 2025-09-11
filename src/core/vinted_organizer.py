@@ -75,8 +75,8 @@ class VintedFileOrganizer:
             normalized_username = self._normalize_filename(username)
             normalized_title = self._normalize_filename(title)
             
-            logger.debug(f"👤 Username: '{username}' → '{normalized_username}'")
-            logger.debug(f"📝 Titolo: '{title}' → '{normalized_title}'")
+            logger.debug(f"Username: '{username}' → '{normalized_username}'")
+            logger.debug(f"Titolo: '{title}' → '{normalized_title}'")
             
             # Crea la struttura di cartelle
             user_folder = self._create_user_folder(normalized_username)
@@ -99,7 +99,7 @@ class VintedFileOrganizer:
             result["success"] = True
             
         except Exception as e:
-            logger.error(f"❌ Errore durante l'organizzazione: {str(e)}")
+            logger.error(f"Errore durante l'organizzazione: {str(e)}")
             result["errors"].append(f"Errore durante l'organizzazione: {str(e)}")
             
         return result
@@ -260,7 +260,7 @@ class VintedFileOrganizer:
                 
             except Exception as e:
                 # Log degli errori
-                logger.error(f"❌ Errore spostando '{photo_file.name}': {str(e)}")
+                logger.error(f"Errore spostando '{photo_file.name}': {str(e)}")
                 
                 moved_files.append({
                     "from": str(photo_file),
@@ -268,7 +268,7 @@ class VintedFileOrganizer:
                     "new_name": "ERROR"
                 })
         
-        logger.debug(f"✅ Organizzazione completata: {len([f for f in moved_files if 'ERROR' not in f['to']])}/{len(photo_files)} immagini spostate con successo")
+        logger.debug(f"Organizzazione completata: {len([f for f in moved_files if 'ERROR' not in f['to']])}/{len(photo_files)} immagini spostate con successo")
                 
         return moved_files
     
